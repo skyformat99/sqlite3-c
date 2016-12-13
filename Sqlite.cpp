@@ -222,7 +222,7 @@ public:
 		void **d = (void**)mData;
 		for (int i = 0; i < idx; ++i) {
 			void **last = d + PAGE_SIZE;
-			d = last;
+			d = (void**)*last;
 		}
 		return d;
 	}
@@ -266,8 +266,9 @@ public:
 	}
 	
 	void freeRow(void **row) {
-		for (int i = 0; i < mColNum; ++i)
-			free(row[i]);
+		for (int i = 0; i < mColNum; ++i) {
+			if (row[i]) free(row[i]);
+		}
 		free((void*)row);
 	}
 	
@@ -277,7 +278,7 @@ public:
 			for (int j = 0; j < getSize(i); ++j) {
 				freeRow((void**)pd[j]);
 			}
-			free(pd);
+			free((void*)pd);
 		}
 	}
 	
@@ -286,7 +287,7 @@ public:
 	int mPageNum;
 	void *mData;
 };
-Record::Record() : mData(new RecordData()) {
+Record::Record() : mData(new RecordData()), mTitles(0) {
 }
 int Record::getColNum() {
 	return mData->mColNum;
@@ -332,6 +333,8 @@ int Sqlite::execCallback(void* udat, int colNum, char** colVal, char** colTitle)
 		for (int i = 0; i < colNum; ++i)
 			r->mTitles[i] = dup(colTitle[i]);
 	}
+	r->mData->append(colVal);
+	return 0;
 }
 Record *Sqlite::query(const char *sql) {
 	Record* r = new Record();
