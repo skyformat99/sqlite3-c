@@ -307,7 +307,7 @@ Record::~Record() {
 	for (int i = 0; i < mData->mColNum; ++i) {
 		free(mTitles[i]);
 	}
-	free(mTitles);
+	if (mTitles) free(mTitles);
 }
 
 //----------------------------------------------------------------------
