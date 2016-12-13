@@ -203,114 +203,6 @@ int Statement::reset() {
 	return sqlite3_reset((sqlite3_stmt*)mObj);
 }
 //----------------------------------------------------------------------
-static char* dup(const char *str) {
-	if (str == 0) return 0;
-	int len = strlen(str);
-	char *p = (char*)malloc(len + 1);
-	strcpy(p, str);
-	return p;
-}
-class Record::RecordData {
-public:
-	const static int PAGE_SIZE = 512/4 - 1;
-	RecordData() : mColNum(0), mRowSize(0), mPageNum(0), mData(0) {
-	}
-
-	void** getPage(int idx) {
-		if (idx >= mPageNum)
-			return 0;
-		void **d = (void**)mData;
-		for (int i = 0; i < idx; ++i) {
-			void **last = d + PAGE_SIZE;
-			d = (void**)*last;
-		}
-		return d;
-	}
-	
-	void inc() {
-		if (mRowSize < mPageNum * PAGE_SIZE)
-			return;
-		if (mPageNum == 0) {
-			mData = malloc(sizeof(void*) * (PAGE_SIZE + 1));
-		} else {
-			void **d = getPage(mPageNum - 1);
-			void **last = d + PAGE_SIZE;
-			*last = malloc(sizeof(void*) * (PAGE_SIZE + 1));
-		}
-		++mPageNum;
-	}
-	
-	void append(char **colVal) {
-		inc();
-		void **d = getPage(mRowSize / PAGE_SIZE);
-		d += mRowSize % PAGE_SIZE;
-		++mRowSize;
-		char **row = (char**)(malloc(sizeof(char*) * mColNum));
-		*d = row;
-		for (int i = 0; i < mColNum; ++i)
-			row[i] = dup(colVal[i]);
-	}
-	
-	int getSize(int page) {
-		if (page < mPageNum - 1)
-			return PAGE_SIZE;
-		return mRowSize % PAGE_SIZE;
-	}
-	
-	char *getColVal(int row, int col) {
-		if (row >= mRowSize || col >= mColNum)
-			return 0;
-		void **pd = getPage(row / PAGE_SIZE);
-		void **rd = (void**)pd[row % PAGE_SIZE];
-		return (char*)rd[col];
-	}
-	
-	void freeRow(void **row) {
-		for (int i = 0; i < mColNum; ++i) {
-			if (row[i]) free(row[i]);
-		}
-		free((void*)row);
-	}
-	
-	~RecordData() {
-		for (int i = mPageNum - 1; i >= 0; --i) {
-			void **pd = getPage(i);
-			for (int j = 0; j < getSize(i); ++j) {
-				freeRow((void**)pd[j]);
-			}
-			free((void*)pd);
-		}
-	}
-	
-	int mColNum;
-	int mRowSize;
-	int mPageNum;
-	void *mData;
-};
-Record::Record() : mData(new RecordData()), mTitles(0) {
-}
-int Record::getColNum() {
-	return mData->mColNum;
-}
-int Record::getRowNum() {
-	return mData->mRowSize;
-}
-char* Record::getColTitle(int col) {
-	if (col < getColNum()) return mTitles[col];
-	return 0;
-}
-char *Record::getColVal(int row, int col) {
-	return mData->getColVal(row, col);
-}
-Record::~Record() {
-	delete mData;
-	for (int i = 0; i < mData->mColNum; ++i) {
-		free(mTitles[i]);
-	}
-	if (mTitles) free(mTitles);
-}
-
-//----------------------------------------------------------------------
 Sqlite::Sqlite() : mObj(0), mTransOk(0) {
 }
 int Sqlite::initLibrary(const char *dllPath) {
@@ -325,26 +217,7 @@ int Sqlite::close() {
 int Sqlite::exec(const char *sql, int (*callback)(void*,int,char**,char**), void * param, char **errmsg) {
 	return sqlite3_exec((sqlite3 *)mObj, sql, callback, param, errmsg);
 }
-int Sqlite::execCallback(void* udat, int colNum, char** colVal, char** colTitle) {
-	Record *r = (Record*)udat;
-	if (colNum > 0 && r->mTitles == 0) {
-		r->mData->mColNum = colNum;
-		r->mTitles = (char**)malloc(sizeof(char*) * colNum);
-		for (int i = 0; i < colNum; ++i)
-			r->mTitles[i] = dup(colTitle[i]);
-	}
-	r->mData->append(colVal);
-	return 0;
-}
-Record *Sqlite::query(const char *sql) {
-	Record* r = new Record();
-	int v = exec(sql, &execCallback, (void*)r, 0);
-	if (v == SQLITE_OK) {
-		return r;
-	}
-	delete r;
-	return 0;
-}
+
 int64 Sqlite::lastInsertRowid() {
 	return sqlite3_last_insert_rowid((sqlite3 *)mObj);
 }

@@ -39,21 +39,6 @@ private:
 	void *mObj;
 };
 
-class Record {
-public:
-	Record();
-	int getColNum();
-	int getRowNum();
-	char* getColTitle(int col);
-	char *getColVal(int row, int col);
-	~Record();
-private:
-	class RecordData;
-	RecordData *mData;
-	char** mTitles;
-	friend class Sqlite;
-};
-
 class Sqlite {
 public:
 	enum {
@@ -73,8 +58,6 @@ public:
 		int (*callback)(void*,int,char**,char**),   /* Callback function */
 		void *, /* 1st argument to callback */
 		char **errmsg /* Error msg written here */);
-
-	Record *query(const char *sql);
 
 	int64 lastInsertRowid();
 	
@@ -102,8 +85,6 @@ public:
 	int beginTransaction();
 	void transactionSuccess();
 	int endTransaction();
-private:
-	static int execCallback(void* udat, int colNum, char** colVal, char** colTitle);
 	
 private:
 	void *mObj;

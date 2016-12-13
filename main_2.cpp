@@ -35,15 +35,6 @@ int main(int argc, char **argv) {
 	//cc = db.exec(sql, callback, 0, &err);
 	//if (cc != Sqlite::SQLITE_OK) { printf("4. error: %s \n", err);}
 	
-	Record *r = db.query(sql);
-	printf("r.colNum=%d r.rowNum=%d \n", r->getColNum(), r->getRowNum());
-	for (int i = 0; 1 && i < r->getRowNum(); ++i) {
-		printf("\n");
-		for (int j = 0; j < r->getColNum(); ++j) {
-			printf("%s ", r->getColVal(i, j));
-		}
-	}
-	delete r;
 	db.close();
 	
 	return 0;
